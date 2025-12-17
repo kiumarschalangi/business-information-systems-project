@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+
 
 # ---------------------------------------------------------
 # 1. PREPROCESSING & KNOWLEDGE UPLIFT
@@ -8,9 +10,8 @@ import numpy as np
 
 def load_and_clean_data(file_path):
 
-    df = pd.read_csv(file_path)
+    df = pd.read_csv("/content/dataset_for_exam.csv")
 
-    # Standardize column names for consistency
     time_col = [c for c in df.columns if 'time' in c.lower()][0]
     case_col = [c for c in df.columns if 'stay' in c.lower()][0]
     act_col = [c for c in df.columns if 'activity' in c.lower()][0]
@@ -44,7 +45,7 @@ def analyze_performance(df, case_col, time_col):
 
 
 def find_bottlenecks(df, case_col, time_col, act_col):
-
+    # Shift to find the next activity and time for the same case
     df['next_time'] = df.groupby(case_col)[time_col].shift(-1)
     df['next_act'] = df.groupby(case_col)[act_col].shift(-1)
 
@@ -65,7 +66,7 @@ def find_bottlenecks(df, case_col, time_col, act_col):
 
 
 def pattern_based_variant_analysis(df, case_col, time_col):
-    # Aggregate data per case to find max temp, min O2, etc.
+
     case_stats = df.groupby(case_col).agg({
         'temperature': 'max',
         'acuity': 'min',
@@ -73,12 +74,12 @@ def pattern_based_variant_analysis(df, case_col, time_col):
         time_col: lambda x: (x.max() - x.min()).total_seconds() / 3600
     }).rename(columns={time_col: 'Lead_Time_Hours'})
 
-    # Create Binary Features
+    # Binary Features
     case_stats['P1_Fever'] = (case_stats['temperature'] >= 100).astype(int)
     case_stats['P2_HighAcuity'] = (case_stats['acuity'] <= 3).astype(int)
     case_stats['P3_Hypoxemia'] = (case_stats['o2sat'] < 90).astype(int)
 
-    # Create Variant Vector String (e.g., "101")
+    # Variant Vector String (e.g., "101")
     case_stats['Variant_Vector'] = (
         case_stats['P1_Fever'].astype(str) +
         case_stats['P2_HighAcuity'].astype(str) +
@@ -93,7 +94,37 @@ def pattern_based_variant_analysis(df, case_col, time_col):
     print(case_stats.groupby('Variant_Vector')['Lead_Time_Hours'].mean())
 
 
+def plot_deviations(total, skips, inserts):
+    labels = ['Total Cases',
+              'Insert Errors\n(Early Meds)', 'Skip Errors\n(Triage->Discharge)']
+    values = [total, inserts, skips]
+    # Grey for total, Red/Orange for errors
+    colors = ['lightgray', '#ff9999', '#ffcc99']
+
+    plt.figure(figsize=(8, 6))
+    bars = plt.bar(labels, values, color=colors, edgecolor='black')
+
+    plt.ylabel('Number of Cases', fontsize=12, fontweight='bold')
+    plt.title('Conformance Checking: Frequency of Deviations',
+              fontsize=14, fontweight='bold')
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+    # Add labels on top of bars
+    for bar in bars:
+        height = bar.get_height()
+        pct = (height / total) * 100
+        label = f"{height}\n({pct:.1f}%)" if height < total else f"{height}"
+        plt.text(bar.get_x() + bar.get_width()/2., height,
+                 label,
+                 ha='center', va='bottom', fontsize=11, fontweight='bold')
+
+    plt.tight_layout()
+    plt.savefig('deviation_chart.png', dpi=300)
+    plt.show()
+
+
 df, case_col, time_col, act_col = load_and_clean_data('dataset_for_exam.csv')
 analyze_performance(df, case_col, time_col)
 find_bottlenecks(df, case_col, time_col, act_col)
 pattern_based_variant_analysis(df, case_col, time_col)
+plot_deviations(1820, 72, 239)
