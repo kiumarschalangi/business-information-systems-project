@@ -92,6 +92,55 @@ def pattern_based_variant_analysis(df, case_col, time_col):
 
     print("\nAverage Lead Time per Variant Vector:")
     print(case_stats.groupby('Variant_Vector')['Lead_Time_Hours'].mean())
+# ---------------------------------------------------------
+# 5. CONFORMANCE CHECKING (Rule-Based)
+# ---------------------------------------------------------
+
+
+def check_conformance_rules(df, case_col, time_col, act_col):
+    print("\n--- Conformance Checking Results ---")
+
+    skip_errors = 0
+    insert_errors = 0
+    total_cases = df[case_col].nunique()
+
+    # We loop through every single patient case
+    for case_id, group in df.groupby(case_col):
+        # Get the list of activities for this patient in order
+        activities = group[act_col].tolist()
+
+        # --- RULE 1: SKIP ERROR (Triage -> Discharge) ---
+        # Logic: IF "Triage" is immediately followed by "Discharge" THEN it is a Skip Error
+        if 'Triage in the ED' in activities:
+            # Find where Triage happened
+            triage_indices = [i for i, x in enumerate(
+                activities) if x == 'Triage in the ED']
+            for idx in triage_indices:
+                # Check if the very next step is Discharge
+                if idx + 1 < len(activities):
+                    if activities[idx+1] == 'Discharge from the ED':
+                        skip_errors += 1
+                        break  # Count only once per patient
+
+        # --- RULE 2: INSERT ERROR (Meds before Order) ---
+        # Logic: IF "Meds Dispensed" time < "Meds Reconciliation" time THEN it is an Insert Error
+        if 'Medicine dispensations' in activities and 'Medicine reconciliation' in activities:
+            # Get the timestamp of the first medication given
+            first_meds_time = group[group[act_col] ==
+                                    'Medicine dispensations'][time_col].min()
+            # Get the timestamp of the doctor's reconciliation (order)
+            first_recon_time = group[group[act_col] ==
+                                     'Medicine reconciliation'][time_col].min()
+
+            # The Critical "If" Statement
+            if first_meds_time < first_recon_time:
+                insert_errors += 1
+
+    print(f"Total Cases Checked: {total_cases}")
+    print(f"Skip Deviations Found: {skip_errors}")
+    print(f"Insert Deviations Found: {insert_errors}")
+
+    return total_cases, skip_errors, insert_errors
 
 
 def plot_deviations(total, skips, inserts):
