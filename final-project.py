@@ -176,4 +176,6 @@ df, case_col, time_col, act_col = load_and_clean_data('dataset_for_exam.csv')
 analyze_performance(df, case_col, time_col)
 find_bottlenecks(df, case_col, time_col, act_col)
 pattern_based_variant_analysis(df, case_col, time_col)
-plot_deviations(1820, 72, 239)
+total, skips, inserts = check_conformance_rules(
+    df, case_col, time_col, act_col)
+plot_deviations(total, skips, inserts)
