@@ -76,7 +76,7 @@ def find_bottlenecks(df, case_col, time_col, act_col):
 # ---------------------------------------------------------
 
 
-def pattern_based_variant_analysis(df, case_col, time_col):
+def analyze_pattern_based_variant(df, case_col, time_col):
 
     case_stats = (
         df.groupby(case_col)
@@ -210,6 +210,6 @@ def plot_deviations(total, skips, inserts):
 df, case_col, time_col, act_col = load_and_clean_data("dataset_for_exam.csv")
 analyze_performance(df, case_col, time_col)
 find_bottlenecks(df, case_col, time_col, act_col)
-pattern_based_variant_analysis(df, case_col, time_col)
+analyze_pattern_based_variant(df, case_col, time_col)
 total, skips, inserts = check_conformance_rules(df, case_col, time_col, act_col)
 plot_deviations(total, skips, inserts)
